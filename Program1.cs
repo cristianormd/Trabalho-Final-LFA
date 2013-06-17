@@ -13,6 +13,9 @@ namespace Trabalho_Final_Console
             Gramatica G = new Gramatica();
             G.CarregaGramatica();
             G.SimplificaProducoesSubstituemVariaveis();
+            Console.WriteLine(G.ToString());
+            Console.ReadLine();
+            
         }
     }
 
@@ -63,18 +66,48 @@ namespace Trabalho_Final_Console
         public HashSet<string> Variaveis = new HashSet<string>();
         public string Inicial = null;
 
-        
+
+        public override string ToString()
+        {
+            string aux;
+            aux = "Inicial: " + this.Inicial.ToString()+ "\n"+"Terminais:";
+            foreach (string ter in this.Terminais)
+            {
+                aux += ter + ",";
+            }
+            if (aux.Contains(","))
+                aux.Remove(aux.LastIndexOf(','));
+
+            aux += "\n Variaveis:";
+
+            foreach (string var in this.Variaveis)
+            {
+                aux += var + ",";
+            }
+            if (aux.Contains(","))
+                aux.Remove(aux.LastIndexOf(','));
+            aux += "\nRegras:\n" + this.Regras.ToString();
+
+            return aux;
+        }
+
+        public void Simplifica()
+        {
+            SimplificaPrduçõesVazias();
+
+            SimplificaProducoesSubstituemVariaveis();
+
+            SimplificaSimbolosInuteis();
+        }
 
         public void SimplificaSimbolosInuteis()
         {
-            SimplificaProducoesSubstituemVariaveis();
-
             SimplificaSimbolosInuteisEtapa1();
 
             SimplificaSimbolosInuteisEtapa2();
         }
 
-        public void SimplificaPrduçõesVazia()
+        public void SimplificaPrduçõesVazias()
         {
             HashSet<string> Vazio = new HashSet<string>();
             bool mudou=true;
@@ -179,25 +212,27 @@ namespace Trabalho_Final_Console
 
         public void SimplificaProducoesSubstituemVariaveis()
         {
+            Gramatica gnova = new Gramatica();
+            gnova.Variaveis = this.Variaveis;
+            gnova.Terminais = this.Terminais;
+            gnova.Inicial = this.Inicial;
             foreach (string ger in this.Variaveis)
             {
-                HashSet<string> fecho=new HashSet<string>();
+                HashSet<string> fecho = new HashSet<string>();
                 fecho.Add(ger);
                 bool parou;
-                do{
-                    parou=true;
+                do
+                {
+                    parou = true;
                     foreach (Regra regra in this.Regras)
                     {
                         if (fecho.Contains(regra.Gerador) && regra.Gerados.Count == 1 && !fecho.Contains(regra.Gerados[0]))
                         {
                             fecho.Add(regra.Gerados[0]);
-                            this.Regras.Remove(regra);
-                            parou=false;
+                            parou = false;
                         }
                     }
-                }while(!parou);
-
-                fecho.Remove(ger);
+                } while (!parou);
 
                 foreach (Regra regra in this.Regras)
                 {
@@ -205,10 +240,13 @@ namespace Trabalho_Final_Console
                     {
                         Regra nova = regra;
                         nova.Gerador = ger;
-                        this.Regras.Add(nova);
+                        gnova.Regras.Add(nova);
                     }
                 }
-             }
+            }
+            this.Variaveis = gnova.Variaveis;
+            this.Terminais=gnova.Terminais;
+            this.Inicial = gnova.Inicial;
         }
 
         public void ConverteFNC()
@@ -231,15 +269,20 @@ namespace Trabalho_Final_Console
                     }
                 }
 
-                while(regra.Gerados.Count > 2)
+                while (regra.Gerados.Count > 2)
                 {
-                    Regra nova = new Regra();
-                    this.Variaveis.Add(regra.Gerador + regra.Gerados.Count.ToString());
-                    nova.Gerador = regra.Gerador + regra.Gerados.Count.ToString();
-                    nova.Gerados.Add(regra.Gerados[0]);
-                    nova.Gerados.Add(regra.Gerados[1]);
-                    this.Regras.Add(nova);
+                    string novoger = regra.Gerados[0] + regra.Gerados[1];
+                    if (!this.Variaveis.Contains(novoger))
+                    {
+                        Regra nova = new Regra();
+                        this.Variaveis.Add(novoger);
+                        nova.Gerador = novoger;
+                        nova.Gerados.Add(regra.Gerados[0]);
+                        nova.Gerados.Add(regra.Gerados[1]);
+                        this.Regras.Add(nova);
+                    }
                     regra.Gerados.Remove(regra.Gerados[0]);
+                    regra.Gerados[0] = novoger;
                 }
             }
         }
