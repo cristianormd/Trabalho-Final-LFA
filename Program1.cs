@@ -244,9 +244,7 @@ namespace Trabalho_Final_Console
                     }
                 }
             }
-            this.Variaveis = gnova.Variaveis;
-            this.Terminais=gnova.Terminais;
-            this.Inicial = gnova.Inicial;
+            this.Regras = gnova.Regras;
         }
 
         public void ConverteFNC()
