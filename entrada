@@ -1,0 +1,19 @@
+ Terminais  				# A secao de simbolos terminais eh a primeira do arquivo.
+{ a,b,u,v }	# Tudo o que estiver apos o sustenido (#)  sera considerado comentario. 
+Variaveis				    	
+{ S,X,Y,A,B,Z }			  	
+Inicial					
+{ S }							# Os simbolos terminais sao qualquer sequencia de caracteres 
+Regras						# (nao reservados) entre chaves. Os elementos do conjunto sao separados por virgula.
+{ S > X,Y,Z } ;1				# A secao de simbolos terminais inicia com a palavra-chave "Terminais".
+{ X > X,A,X } ;1				# Eh altamente recomendavel que simbolos terminais iniciem por caracteres minusculos.
+{ X > Y,B,Y  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ X > &  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ Y > X,A,Y } ;1				# Eh altamente recomendavel que simbolos terminais iniciem por caracteres minusculos.
+{ Y > Y,B,X  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ Y > &  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ A > a } ;1				# Eh altamente recomendavel que simbolos terminais iniciem por caracteres minusculos.
+{ B > b  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ Z > Z,u  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ Z > Z,v  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
+{ Z > &  } ;0.3				# Simbolos nao podem conter os caracteres "{", "}", "#" ou ">", por serem reservado
