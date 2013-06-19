@@ -1,0 +1,518 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.IO;
+
+namespace Chomsky
+{
+    public class Regra
+    {
+        public string Gerador = " ";
+        public List<string> Gerados = new List<string>();
+
+        public Regra()
+        { }
+
+        public static bool ListaContem(List<Regra> lista, Regra regra)
+        {
+            int i;
+            foreach (Regra r in lista)
+                if (regra.Gerador == r.Gerador && regra.Gerados.Count == r.Gerados.Count)
+                {
+                    for (i = 0; i < r.Gerados.Count && regra.Gerados[i] == r.Gerados[i]; i++) ;
+                    if (i == r.Gerados.Count)
+                        return true;
+                }
+
+            return false;
+        }
+
+
+        public Regra(string gerador, List<string> gerados)
+        {
+            this.Gerador = gerador;
+            this.Gerados = gerados;
+        }
+
+
+        public Regra(string regra) //cria uma regra dada sua representação em string na forma R>A,B,C.....,X,Z
+        {
+            string[] aux;
+            if (regra.Contains(">"))
+            {
+                aux = regra.Split('>');
+                this.Gerador = aux[0];
+                aux = aux[1].Split(',');
+                foreach (string s in aux)
+                {
+                    this.Gerados.Add(s);
+                }
+            }
+        }
+
+        public override string ToString()
+        {
+            string aux;
+            aux = Gerador + ">";
+            foreach (string g in this.Gerados)
+                aux += g + ' ';
+            if (aux.Contains(","))
+                aux = aux.Remove(aux.LastIndexOf(','));
+            return aux;
+        }
+
+    }
+
+    public class Gramatica
+    {
+        public List<Regra> Regras = new List<Regra>();
+        public List<string> Terminais = new List<string>();
+        public List<string> Variaveis = new List<string>();
+        public string Inicial = null;
+
+
+        public override string ToString()
+        {
+            string aux;
+            aux = "Inicial: " + this.Inicial.ToString() + "\n" + "Terminais:\n";
+            foreach (string ter in this.Terminais)
+            {
+                aux += ter + ",";
+            }
+            if (aux.Contains(","))
+                aux = aux.Remove(aux.LastIndexOf(','));
+
+            aux += "\nVariaveis:\n";
+
+            foreach (string var in this.Variaveis)
+            {
+                aux += var + ",";
+            }
+            if (aux.Contains(","))
+                aux = aux.Remove(aux.LastIndexOf(','));
+            aux += "\nRegras:\n";
+            foreach (Regra regra in this.Regras)
+                aux += regra.ToString() + "\n";
+
+
+            return aux;
+        }
+
+        public void Simplifica()
+        {
+            SimplificaProduçõesVazias();
+
+            SimplificaProducoesSubstituemVariaveis();
+
+            SimplificaSimbolosInuteis();
+        }
+
+        public void SimplificaSimbolosInuteis()
+        {
+            SimplificaSimbolosInuteisEtapa1();
+
+            SimplificaSimbolosInuteisEtapa2();
+        }
+
+        public void SimplificaProduçõesVazias()
+        {
+            List<string> Vazio = new List<string>();
+            bool mudou = true;
+            bool flag;
+            List<Regra> NovoRegras = new List<Regra>();
+
+            foreach (Regra regra in this.Regras)
+            {
+                if (regra.Gerados.Contains("&"))
+                    Vazio.Add(regra.Gerador);
+            }
+
+
+
+            while (mudou)
+            {
+                mudou = false;
+                foreach (Regra regra in this.Regras)
+                {
+                    if (!Vazio.Contains(regra.Gerador))
+                    {
+                        flag = true;
+
+                        foreach (string gerado in regra.Gerados)
+                        {
+                            if (!Vazio.Contains(gerado))
+                                flag = false;
+                        }
+                        if (flag)
+                        {
+                            Vazio.Add(regra.Gerador);
+                            mudou = true;
+                        }
+                    }
+                }
+            }
+
+
+
+
+            foreach (Regra regra in this.Regras)
+                if (!regra.Gerados.Contains("&"))
+                    NovoRegras.Add(regra);
+
+
+            mudou = true;
+
+            while (mudou)
+            {
+                List<Regra> raux = new List<Regra>();
+                mudou = false;
+                foreach (Regra regra in NovoRegras)
+                {
+                    for (int i = 0; i < regra.Gerados.Count; i++)
+                    {
+                        if (Vazio.Contains(regra.Gerados[i]) && regra.Gerados.Count > 1)
+                        {
+                            Regra nova;
+                            List<string> aux = new List<string>(regra.Gerados);
+                            aux.RemoveAt(i);
+                            nova = new Regra(regra.Gerador, aux);
+                            if (!Regra.ListaContem(NovoRegras, nova))
+                            {
+                                mudou = true;
+                                raux.Add(nova);
+                            }
+                        }
+
+                    }
+                }
+
+                foreach (Regra regra in raux)
+                    if (!NovoRegras.Contains(regra))
+                        NovoRegras.Add(regra);
+            }
+
+
+            List<string> xaux = new List<string>();
+            xaux.Add("&");
+            this.Regras = NovoRegras;
+            if (Vazio.Contains(Inicial))
+                this.Regras.Add(new Regra(Inicial, xaux));
+        }
+
+        public List<string>[,] CYK(string entrada)
+        {
+            bool valida;
+            List<string> Frase = new List<string>();
+            try
+            {
+                do
+                {
+                    valida = true;
+                    string aux;
+                    aux = entrada;
+                    aux = aux.Replace("\n", "");
+                    aux = aux.Replace("\t", "");
+                    aux = aux.Replace("\r", "");
+                    Frase.Clear();
+                    foreach (string s in aux.Split(' '))
+                    {
+                        Frase.Add(s);
+                    }
+
+                    for (int i = 0; i < Frase.Count; i++)
+                    {
+                        if (!this.Terminais.Contains(Frase[i]))
+                        {
+                            Console.WriteLine("Entrada não pertence à gramática, por favor digite outra:");
+                            valida = false;
+                        }
+                    }
+                } while (!valida);
+
+
+
+                List<string>[,] CYK = new List<string>[Frase.Count(), Frase.Count()];
+                for (int i = 0; i < Frase.Count(); i++)
+                    for (int j = 0; j < Frase.Count(); j++)
+                        CYK[i, j] = new List<string>();
+
+                for (int i = 0; i < Frase.Count(); i++)
+                    foreach (Regra regra in this.Regras)
+                        if (regra.Gerados.Contains(Frase[i]))
+                        {
+                            if (CYK[i, i] == null)
+                                CYK[i, i] = new List<string>();
+                            CYK[i, i].Add(regra.Gerador);
+                        }
+
+                for (int d = 1; d < Frase.Count(); d++)
+                    for (int i = 0; i + d < Frase.Count(); i++)
+                        for (int g = 0; g < d; g++)
+                            foreach (Regra regra in this.Regras)
+                                if (CYK[i, i + g].Contains(regra.Gerados[0]) && CYK[i + g, i + d].Contains(regra.Gerados[1]))
+                                    CYK[i, i + d].Add(regra.Gerador);
+
+                return CYK;
+            }
+            catch (Exception e) { throw e; }
+
+        }
+
+        public void SimplificaSimbolosInuteisEtapa1()
+        {
+            List<string> VarETerm = this.Terminais;
+            bool parou;
+            bool pertence = false;
+            do
+            {
+                parou = true;
+                foreach (Regra regra in this.Regras)
+                {
+                    pertence = true;
+                    foreach (string Gerado in regra.Gerados)
+                    {
+                        if (!VarETerm.Contains(Gerado))
+                        {
+                            pertence = false;
+                            break;
+                        }
+                    }
+
+                    if (pertence)
+                    {
+                        VarETerm.Add(regra.Gerador);
+                        parou = false;
+                    }
+
+                }
+
+            } while (!parou);
+
+            foreach (Regra regra in Regras)
+                if (!VarETerm.Contains(regra.Gerador))
+                    VarETerm.Remove(regra.Gerador);
+
+            Variaveis.Intersect(VarETerm);
+        }
+
+        public void SimplificaSimbolosInuteisEtapa2()
+        {
+            List<string> VarETerm = new List<string>();
+            VarETerm.Add(this.Inicial);
+            bool parou;
+            do
+            {
+                parou = true;
+                foreach (Regra regra in this.Regras)
+                {
+                    if (VarETerm.Contains(regra.Gerador))
+                    {
+                        parou = false;
+                        foreach (string Gerado in regra.Gerados)
+                        {
+                            VarETerm.Add(Gerado);
+                        }
+                    }
+                }
+
+            } while (!parou);
+
+            foreach (Regra regra in Regras)
+                if (!VarETerm.Contains(regra.Gerador))
+                    VarETerm.Remove(regra.Gerador);
+
+            Variaveis.Intersect(VarETerm);
+            Terminais.Intersect(VarETerm);
+        }
+
+        public void SimplificaProducoesSubstituemVariaveis()
+        {
+            Gramatica gnova = new Gramatica();
+            foreach (string ger in this.Variaveis)
+            {
+                List<string> fecho = new List<string>();
+                fecho.Add(ger);
+                bool parou;
+                do
+                {
+                    parou = true;
+                    foreach (Regra regra in this.Regras)
+                    {
+                        if (fecho.Contains(regra.Gerador) && regra.Gerados.Count == 1 && !fecho.Contains(regra.Gerados[0]))
+                        {
+                            fecho.Add(regra.Gerados[0]);
+                            parou = false;
+                        }
+                    }
+                } while (!parou);
+
+                foreach (Regra regra in this.Regras)
+                {
+                    if (fecho.Contains(regra.Gerador))
+                    {
+                        Regra nova = new Regra(regra.Gerador, new List<string>(regra.Gerados));
+                        nova.Gerador = ger;
+                        gnova.Regras.Add(nova);
+                    }
+                }
+            }
+
+            this.Regras = gnova.Regras;
+            for (int i = 0; i < this.Regras.Count; i++)
+                if (this.Regras[i].Gerados.Count == 1 && this.Variaveis.Contains(this.Regras[i].Gerados[0]))
+                {
+                    Regras.Remove(this.Regras[i]);
+                    i--;
+                }
+        }
+
+        public void ConverteFNC()
+        {
+            for (int i = 0; i < this.Regras.Count; i++)
+            {
+                if (this.Regras[i].Gerados.Count >= 2)
+                {
+                    for (int k = 0; k < this.Regras[i].Gerados.Count; k++)
+                    {
+                        if (Terminais.Contains(this.Regras[i].Gerados[k]))
+                        {
+                            if (!Variaveis.Contains("C" + this.Regras[i].Gerados[k]))
+                            {
+                                this.Variaveis.Add("C" + this.Regras[i].Gerados[k]);
+                                Regra nova = new Regra();
+                                nova.Gerador = "C" + this.Regras[i].Gerados[k];
+                                nova.Gerados.Add(this.Regras[i].Gerados[k]);
+                                this.Regras.Add(nova);
+                            }
+                            for (int j = 0; j < this.Regras[i].Gerados.Count; j++)
+                            {
+                                if (this.Regras[i].Gerados[j] == this.Regras[i].Gerados[k])
+                                    this.Regras[i].Gerados[j] = "C" + this.Regras[i].Gerados[k];
+                            }
+                        }
+                    }
+                }
+                while (this.Regras[i].Gerados.Count > 2)
+                {
+                    string novoger = this.Regras[i].Gerados[0] + this.Regras[i].Gerados[1];
+                    if (!this.Variaveis.Contains(novoger))
+                    {
+                        Regra nova = new Regra();
+                        this.Variaveis.Add(novoger);
+                        nova.Gerador = novoger;
+                        nova.Gerados.Add(this.Regras[i].Gerados[0]);
+                        nova.Gerados.Add(this.Regras[i].Gerados[1]);
+                        this.Regras.Add(nova);
+                    }
+                    this.Regras[i].Gerados.Remove(this.Regras[i].Gerados[0]);
+                    this.Regras[i].Gerados[0] = novoger;
+                }
+            }
+        }
+
+        public bool Valida()
+        {
+            if (this.Inicial != null && this.Variaveis.Count > 0 && this.Terminais.Count > 0 && this.Regras.Count > 0)
+                return true;
+            else
+                return false;
+        }
+        public void CarregaGramatica(string arquivo)
+        {
+            StreamReader file;
+            try
+            {
+                file = new StreamReader(arquivo);
+
+                string Entrada;
+
+                Entrada = file.ReadLine(); //linha que deve conter a palavra terminais
+
+                //Daqui para baixo , lê terminais
+                Entrada = file.ReadLine(); //pega a lina que deve conter os terminais
+                this.Terminais = new List<string>();
+                foreach (string ter in ElementosConjunto(Entrada)) //para cada terminal na entrada
+                {
+                    this.Terminais.Add(ter); //Adiciona este terminal na gramática
+                }
+                Entrada = file.ReadLine();//remove a linha que deve conter a palavra Variaveis
+
+                Entrada = file.ReadLine(); //pega a lina que deve conter as variaveis
+                this.Variaveis=new List<string>();
+                foreach (string var in ElementosConjunto(Entrada))//para cada variavel na entrada
+                {
+                    this.Variaveis.Add(var);//Adiciona esta variavel na gramática
+                }
+                Entrada = file.ReadLine();//remove a linha que deve conter a palavra Iniciais
+                Entrada = file.ReadLine(); //pega a lina que deve conter as variaveis
+
+                this.Inicial = "";
+                foreach (string ini in ElementosConjunto(Entrada))//para cada variavel inicial na entrada (será única)
+                {
+                    this.Inicial = ini;
+                }
+                Entrada = file.ReadLine();//remove a linha que deve conter a palavra Regras
+                Entrada = file.ReadToEnd();
+
+                foreach (string regra in ElementosListaDeConjuntos(Entrada))
+                {
+                    this.Regras.Add(new Regra(regra));
+
+                }
+            }
+            catch (Exception e)
+            { }
+        }
+
+
+        private static string[] ElementosConjunto(string Entrada) //dada uma string que representa um conjunto retorna um arranjo de strings que contém os elementos do conjunto
+        {
+
+
+            while (Entrada.Contains('#'))
+            {
+                Entrada = Entrada.Remove(Entrada.IndexOf('#'));//remove os comentários
+            }
+            while (Entrada.Contains(';'))
+            {
+                Entrada = Entrada.Remove(Entrada.IndexOf(';')); //remove o que vem depois do ponto e virgula (irrelevante para nosso trabalho)
+            }
+            Entrada = Entrada.Replace(" ", String.Empty);
+            Entrada = Entrada.Replace("{", String.Empty);
+            Entrada = Entrada.Replace("\t", String.Empty);
+            Entrada = Entrada.Replace("\r", String.Empty);
+            Entrada = Entrada.Replace("}", String.Empty);//remove chaves e espaços
+            return Entrada.Split(',');
+
+        }
+
+        private static string[] ElementosListaDeConjuntos(string Entrada) //retorna os elementos de uma lista de conjuntos em que cada conjunto contem apenas um elemento
+        {
+            string[] aux;
+            Entrada = Entrada.Replace(" ", String.Empty);
+            Entrada = Entrada.Replace("{", String.Empty);
+            Entrada = Entrada.Replace("\t", String.Empty);
+            Entrada = Entrada.Replace("\r", String.Empty);
+            Entrada = Entrada.Replace("}", String.Empty);//remove chaves e espaços
+            aux = Entrada.Split('\n');
+            for (int i = 0; i < aux.Length; i++)
+            {
+                while (aux[i].Contains('#'))
+                {
+                    aux[i] = aux[i].Remove(aux[i].IndexOf('#'));//remove os comentários
+                }
+
+                while (aux[i].Contains(';'))
+                {
+                    aux[i] = aux[i].Remove(aux[i].IndexOf(';')); //remove o que vem depois do ponto e virgula (irrelevante para nosso trabalho)
+                }
+                aux[i] = aux[i].Replace(" ", String.Empty);
+                aux[i] = aux[i].Replace("{", String.Empty);
+                aux[i] = aux[i].Replace("}", String.Empty);//remove chaves e espaços
+            }
+
+            return aux;
+        }
+    }
+}
